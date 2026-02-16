@@ -1,4 +1,4 @@
-.PHONY: setup setup-offline vendor lint format test demo-a demo-b demo-c
+.PHONY: setup setup-offline vendor lint format test demo-a demo-b demo-c api api-smoke
 
 VENV=.venv
 PYTHON=$(VENV)/bin/python
@@ -38,3 +38,9 @@ demo-b:
 
 demo-c:
 	NO_LLM_MODE=true OFFLINE_MODE=true SEED=42 $(PYTHON) -m seo_factory.cli demo-c
+
+api:
+	NO_LLM_MODE=true OFFLINE_MODE=true $(PYTHON) -m uvicorn seo_factory.api.app:app --host 127.0.0.1 --port 8000
+
+api-smoke:
+	$(PYTHON) -m pytest -q tests/test_api_smoke.py

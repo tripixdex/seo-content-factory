@@ -1,0 +1,161 @@
+{
+  "name": "SEO Factory Demo",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        220,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "source_path",
+              "value": "fixtures/pages/demo_a.html"
+            },
+            {
+              "name": "keyword",
+              "value": "product analytics automation"
+            },
+            {
+              "name": "job_id",
+              "value": "item_001"
+            },
+            {
+              "name": "run_id",
+              "value": "n8n-demo-a-001"
+            },
+            {
+              "name": "output_dir",
+              "value": "outputs/demo_a"
+            }
+          ]
+        }
+      },
+      "id": "set_run_one",
+      "name": "Set Run One Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        470,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/run-one",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{$json}}"
+      },
+      "id": "http_run_one",
+      "name": "HTTP Run One",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        730,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "csv_path",
+              "value": "fixtures/demo_batch.csv"
+            },
+            {
+              "name": "run_id",
+              "value": "n8n-demo-b-001"
+            },
+            {
+              "name": "output_dir",
+              "value": "outputs/demo_b"
+            }
+          ]
+        }
+      },
+      "id": "set_run_batch",
+      "name": "Set Run Batch Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        470,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/run-batch",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{$json}}"
+      },
+      "id": "http_run_batch",
+      "name": "HTTP Run Batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        730,
+        340
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Run One Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Set Run Batch Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Run One Payload": {
+      "main": [
+        [
+          {
+            "node": "HTTP Run One",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Run Batch Payload": {
+      "main": [
+        [
+          {
+            "node": "HTTP Run Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1"
+}
