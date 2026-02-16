@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-import csv
 from pathlib import Path
+from typing import Annotated
 
 import typer
 
 from seo_factory.config import Settings
 from seo_factory.domain.models import JobSpec
+from seo_factory.pipeline.batch_runner import run_batch_from_csv
 from seo_factory.pipeline.orchestrator import run_job
-from seo_factory.storage.fs import file_sha256, write_job_result, write_json, write_summary_csv
+from seo_factory.storage.fs import file_sha256, write_job_result, write_json
 
 app = typer.Typer(help="SEO Content Automation Factory CLI")
 
@@ -28,57 +29,15 @@ def _run_one_internal(
     run_id: str,
     output_dir: Path,
 ) -> tuple[Path, dict[str, str]]:
-    spec = JobSpec(job_id=job_id, source_path=source, target_keyword=keyword, run_id=run_id)
+    spec = JobSpec(
+        job_id=job_id,
+        source_path=source,
+        target_keyword=keyword,
+        run_id=run_id,
+    )
     result = run_job(spec)
     job_dir = write_job_result(output_dir, result)
     return job_dir, result.meta
-
-
-def _run_batch_internal(csv_path: Path, run_id: str, output_dir: Path) -> Path:
-    rows: list[dict[str, str]] = []
-    with csv_path.open("r", newline="", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle)
-        for index, row in enumerate(reader, start=1):
-            job_id = (row.get("job_id") or "").strip()
-            source_path = Path((row.get("source_path") or "").strip())
-            keyword = (row.get("target_keyword") or "").strip()
-
-            status = "success"
-            error_message = ""
-            slug = ""
-            quality_score = "0.0"
-
-            try:
-                if not job_id or not keyword or not str(source_path):
-                    raise ValueError("CSV row missing required fields")
-                _, meta = _run_one_internal(source_path, keyword, job_id, run_id, output_dir)
-                slug = meta.get("slug", "")
-                quality_path = output_dir / run_id / job_id / "quality_report.json"
-                quality_score = str(_quality_score_from_report(quality_path))
-            except Exception as exc:  # noqa: BLE001
-                status = "failed"
-                error_message = str(exc)
-
-            rows.append(
-                {
-                    "row_id": str(index),
-                    "job_id": job_id,
-                    "source_path": str(source_path),
-                    "slug": slug,
-                    "quality_score": quality_score,
-                    "status": status,
-                    "error_message": error_message,
-                }
-            )
-
-    return write_summary_csv(output_dir, run_id, rows)
-
-
-def _quality_score_from_report(path: Path) -> float:
-    import json
-
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    return float(payload.get("quality_score", 0.0))
 
 
 @app.command("health")
@@ -91,11 +50,14 @@ def health() -> None:
 
 @app.command("run-one")
 def run_one(
-    source: Path = typer.Option(..., exists=True, file_okay=True, dir_okay=False),
-    keyword: str = typer.Option(...),
-    job_id: str = typer.Option(...),
-    run_id: str = typer.Option(...),
-    output_dir: Path = typer.Option(...),
+    source: Annotated[
+        Path,
+        typer.Option(..., exists=True, file_okay=True, dir_okay=False),
+    ],
+    keyword: Annotated[str, typer.Option(...)],
+    job_id: Annotated[str, typer.Option(...)],
+    run_id: Annotated[str, typer.Option(...)],
+    output_dir: Annotated[Path, typer.Option(...)],
 ) -> None:
     """Run one offline job and write artifacts."""
 
@@ -105,13 +67,16 @@ def run_one(
 
 @app.command("run-batch")
 def run_batch(
-    csv_path: Path = typer.Option(..., "--csv", exists=True, file_okay=True, dir_okay=False),
-    run_id: str = typer.Option(..., "--run-id"),
-    output_dir: Path = typer.Option(..., "--output-dir"),
+    csv_path: Annotated[
+        Path,
+        typer.Option(..., "--csv", exists=True, file_okay=True, dir_okay=False),
+    ],
+    run_id: Annotated[str, typer.Option(..., "--run-id")],
+    output_dir: Annotated[Path, typer.Option(..., "--output-dir")],
 ) -> None:
     """Run batch jobs from CSV and write summary CSV."""
 
-    summary = _run_batch_internal(csv_path, run_id, output_dir)
+    summary = run_batch_from_csv(csv_path, run_id, output_dir)
     typer.echo(f"Wrote: {summary}")
 
 
@@ -121,9 +86,13 @@ def demo_a() -> None:
 
     settings = Settings()
     _require_deterministic_modes(settings)
-    source = Path("fixtures/pages/demo_a.html")
-    output_dir = Path("outputs/demo_a")
-    job_dir, _ = _run_one_internal(source, "product analytics automation", "item_001", "demo-a-001", output_dir)
+    job_dir, _ = _run_one_internal(
+        source=Path("fixtures/pages/demo_a.html"),
+        keyword="product analytics automation",
+        job_id="item_001",
+        run_id="demo-a-001",
+        output_dir=Path("outputs/demo_a"),
+    )
     typer.echo(f"Scenario A complete: {job_dir}")
 
 
@@ -133,7 +102,11 @@ def demo_b() -> None:
 
     settings = Settings()
     _require_deterministic_modes(settings)
-    summary = _run_batch_internal(Path("fixtures/demo_batch.csv"), "demo-b-001", Path("outputs/demo_b"))
+    summary = run_batch_from_csv(
+        csv_path=Path("fixtures/demo_batch.csv"),
+        run_id="demo-b-001",
+        output_dir=Path("outputs/demo_b"),
+    )
     typer.echo(f"Scenario B complete: {summary}")
 
 
@@ -143,12 +116,23 @@ def demo_c() -> None:
 
     settings = Settings()
     _require_deterministic_modes(settings)
-    source = Path("fixtures/pages/demo_a.html")
     run_id = "demo-c-001"
     job_id = "item_001"
 
-    run_1_dir, _ = _run_one_internal(source, "local seo automation", job_id, run_id, Path("outputs/demo_c/run_1"))
-    run_2_dir, _ = _run_one_internal(source, "local seo automation", job_id, run_id, Path("outputs/demo_c/run_2"))
+    run_1_dir, _ = _run_one_internal(
+        source=Path("fixtures/pages/demo_a.html"),
+        keyword="local seo automation",
+        job_id=job_id,
+        run_id=run_id,
+        output_dir=Path("outputs/demo_c/run_1"),
+    )
+    run_2_dir, _ = _run_one_internal(
+        source=Path("fixtures/pages/demo_a.html"),
+        keyword="local seo automation",
+        job_id=job_id,
+        run_id=run_id,
+        output_dir=Path("outputs/demo_c/run_2"),
+    )
 
     files = ["page.md", "meta.json", "quality_report.json"]
     run_1_hashes = {name: file_sha256(run_1_dir / name) for name in files}

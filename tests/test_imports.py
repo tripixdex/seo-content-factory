@@ -19,6 +19,7 @@ def test_key_modules_import() -> None:
         "seo_factory.config",
         "seo_factory.domain.models",
         "seo_factory.pipeline.orchestrator",
+        "seo_factory.pipeline.batch_runner",
         "seo_factory.extractors.html_fixture",
         "seo_factory.generators.template",
         "seo_factory.quality.rules",

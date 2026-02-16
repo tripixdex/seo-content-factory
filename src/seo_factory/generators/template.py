@@ -21,7 +21,8 @@ def _build_meta_title(keyword: str, source_h1: str) -> str:
 
 
 def _build_meta_description(keyword: str, paragraphs: list[str]) -> str:
-    base = paragraphs[0] if paragraphs else "Deterministic offline SEO draft from local fixture content."
+    fallback = "Deterministic offline SEO draft from local fixture content."
+    base = paragraphs[0] if paragraphs else fallback
     description = f"{keyword}: {base}"
     return description[:160].rstrip()
 

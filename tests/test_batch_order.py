@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from seo_factory.cli import _run_batch_internal
+from seo_factory.pipeline.batch_runner import run_batch_from_csv
 
 
 def test_batch_summary_preserves_csv_order(tmp_path: Path) -> None:
@@ -22,7 +22,7 @@ def test_batch_summary_preserves_csv_order(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    summary_path = _run_batch_internal(csv_path, "test-run", tmp_path / "out")
+    summary_path = run_batch_from_csv(csv_path, "test-run", tmp_path / "out")
     with summary_path.open("r", newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
 

@@ -1,24 +1,34 @@
-.PHONY: setup lint format test demo-a demo-b demo-c
+.PHONY: setup setup-offline vendor lint format test demo-a demo-b demo-c
 
 VENV=.venv
 PYTHON=$(VENV)/bin/python
-PIP=$(VENV)/bin/pip
-RUFF=$(VENV)/bin/ruff
-PYTEST=$(VENV)/bin/pytest
+WHEELHOUSE_DIR?=.vendor/wheels
 
 setup:
 	python3 -m venv $(VENV)
-	$(PYTHON) -m pip install --upgrade pip
-	$(PIP) install -e ".[dev]"
+	$(PYTHON) -m pip install -U pip setuptools wheel
+	$(PYTHON) -m pip install -e ".[dev]"
+
+setup-offline:
+	python3 -m venv $(VENV)
+	@test -d "$(WHEELHOUSE_DIR)" || (echo "Missing wheelhouse: $(WHEELHOUSE_DIR)" && exit 1)
+	$(PYTHON) -m pip install --no-index --find-links "$(WHEELHOUSE_DIR)" -U pip setuptools wheel
+	$(PYTHON) -m pip install --no-index --find-links "$(WHEELHOUSE_DIR)" -e ".[dev]"
+
+vendor:
+	python3 -m venv $(VENV)
+	$(PYTHON) -m pip install -U pip setuptools wheel
+	mkdir -p "$(WHEELHOUSE_DIR)"
+	$(PYTHON) -m pip download -d "$(WHEELHOUSE_DIR)" -r requirements-lock.txt
 
 lint:
-	$(RUFF) check .
+	$(PYTHON) -m ruff check .
 
 format:
-	$(RUFF) format .
+	$(PYTHON) -m ruff format .
 
 test:
-	PYTHONPATH=src $(PYTEST)
+	$(PYTHON) -m pytest
 
 demo-a:
 	NO_LLM_MODE=true OFFLINE_MODE=true $(PYTHON) -m seo_factory.cli demo-a

@@ -23,11 +23,12 @@ def write_job_result(output_dir: Path, result: JobResult) -> Path:
 
     job_dir = build_job_dir(output_dir, result.run_id, result.job_id)
     (job_dir / "page.md").write_text(result.markdown, encoding="utf-8")
-    (job_dir / "meta.json").write_text(json.dumps(result.meta, indent=2, sort_keys=True), encoding="utf-8")
-    (job_dir / "quality_report.json").write_text(
-        result.quality_report.model_dump_json(indent=2),
-        encoding="utf-8",
-    )
+
+    meta_json = json.dumps(result.meta, indent=2, sort_keys=True)
+    (job_dir / "meta.json").write_text(meta_json, encoding="utf-8")
+
+    report_json = result.quality_report.model_dump_json(indent=2)
+    (job_dir / "quality_report.json").write_text(report_json, encoding="utf-8")
     return job_dir
 
 
@@ -37,7 +38,15 @@ def write_summary_csv(output_dir: Path, run_id: str, rows: list[dict[str, str]])
     run_dir = output_dir / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     summary_path = run_dir / "summary.csv"
-    columns = ["row_id", "job_id", "source_path", "slug", "quality_score", "status", "error_message"]
+    columns = [
+        "row_id",
+        "job_id",
+        "source_path",
+        "slug",
+        "quality_score",
+        "status",
+        "error_message",
+    ]
     with summary_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=columns)
         writer.writeheader()
@@ -55,5 +64,6 @@ def write_json(path: Path, payload: dict) -> Path:
     """Write JSON payload with deterministic key ordering."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    payload_json = json.dumps(payload, indent=2, sort_keys=True)
+    path.write_text(payload_json, encoding="utf-8")
     return path

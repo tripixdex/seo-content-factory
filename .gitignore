@@ -17,6 +17,9 @@ build/
 dist/
 *.egg-info/
 
+# Vendor wheelhouse
+.vendor/
+
 # Runtime output
 outputs/*
 !outputs/.gitkeep
