@@ -1,0 +1,4 @@
+job_id,source_path,target_keyword
+item_001,fixtures/pages/demo_b_1.html,automated seo reporting
+item_002,fixtures/pages/demo_b_2.html,technical seo audits
+item_003,fixtures/pages/demo_b_3.html,content workflow automation
