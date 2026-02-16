@@ -16,11 +16,19 @@ class JobSpec(BaseModel):
     run_id: str = Field(min_length=1)
 
 
+class ExtractedContent(BaseModel):
+    """Deterministically extracted fixture content."""
+
+    title: str
+    h1: str
+    paragraphs: list[str]
+
+
 class QualityReport(BaseModel):
     """Scored quality checks produced by rules engine."""
 
     checks: dict[str, bool]
-    quality_score: int = Field(ge=0, le=100)
+    quality_score: float = Field(ge=0.0, le=1.0)
     passed: bool
 
 

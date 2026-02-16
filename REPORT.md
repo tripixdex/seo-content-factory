@@ -1,88 +1,113 @@
 # REPORT
 
 ## 1) Summary
-Completed Stage 1 repository foundation for **SEO Content Automation Factory** with an offline-first, fixture-driven skeleton.
+Implemented Stage 2 functional offline execution for scenarios A/B/C using local fixtures only.
 
-Delivered:
-- `src/` package layout with small, typed stub modules.
-- Typed env configuration using `pydantic-settings`.
-- Fixture-based demos and batch CSV using local HTML paths only.
-- Architecture and contract documentation for clear module boundaries and deterministic rules.
-- Tooling baseline (`pyproject.toml`, Ruff config, `.gitignore`, `.env.example`, `Makefile`).
-- Minimal import-level tests.
+Completed:
+- Real Typer CLI commands: `health`, `run-one`, `run-batch`, `demo-a`, `demo-b`, `demo-c`.
+- Functional pipeline:
+  - Fixture HTML extraction (`title`, `h1`, paragraphs)
+  - Deterministic markdown + meta generation
+  - Quality checks with normalized `quality_score` (`0.0..1.0`)
+  - Artifact writing and batch `summary.csv`
+- Scenario C determinism hashes written to `outputs/demo_c/determinism_hashes.json`.
+- Makefile converted from placeholders to executable targets.
+- Added tests for slugify, batch ordering, and scenario C determinism.
 
-No network operations were run.
+All demo execution uses local fixture files only. No web content fetching is implemented.
 
-## 2) Files Created/Modified
-Created:
-- `.env.example`
-- `.gitignore`
+## 2) Files Changed/Created
+Changed:
 - `Makefile`
-- `pyproject.toml`
-- `REPORT.md`
-- `docs/ARCHITECTURE.md`
-- `docs/CONTRACTS.md`
-- `docs/PROJECT_MAP.md`
-- `docs/INDEX.md`
-- `docs/DEMO_SCENARIOS.md` (updated to local fixtures + `OFFLINE_MODE=true` in all scenarios)
-- `fixtures/demo_batch.csv`
-- `fixtures/pages/demo_a.html`
-- `fixtures/pages/demo_b_1.html`
-- `fixtures/pages/demo_b_2.html`
-- `fixtures/pages/demo_b_3.html`
-- `outputs/.gitkeep`
-- `src/seo_factory/__init__.py`
 - `src/seo_factory/cli.py`
-- `src/seo_factory/config.py`
 - `src/seo_factory/domain/models.py`
-- `src/seo_factory/pipeline/orchestrator.py`
 - `src/seo_factory/extractors/html_fixture.py`
 - `src/seo_factory/generators/template.py`
+- `src/seo_factory/pipeline/orchestrator.py`
 - `src/seo_factory/quality/rules.py`
 - `src/seo_factory/storage/fs.py`
-- `tests/test_imports.py`
+- `REPORT.md`
 
-Existing docs retained:
-- `docs/PRD.md`
-- `docs/SCOPE.md`
-- `docs/ACCEPTANCE_CRITERIA.md`
+Created:
+- `README.md`
+- `tests/conftest.py`
+- `tests/test_slugify.py`
+- `tests/test_batch_order.py`
+- `tests/test_determinism.py`
 
 ## 3) Commands Run + Short Outputs
-1. `ls -la && rg --files`
-- Confirmed initial repo state and existing docs.
+Required command sequence (executed exactly):
 
-2. `mkdir -p ...` + `cat > ...` (multiple file creation commands)
-- Created Stage 1 skeleton, docs, fixtures, tests, and tooling files.
+1. `make setup`
+- Result: failed in offline environment while installing dependencies.
+- Key output: `Could not find a version that satisfies the requirement setuptools>=68` (network/index unavailable).
 
-3. `find . -maxdepth 4 -type f | sort`
-- Verified expected file tree contains `src/`, `fixtures/`, `tests/`, `docs/`, `pyproject.toml`, `Makefile`.
+2. `make test`
+- Result: failed (venv deps not installed).
+- Key output: `.venv/bin/pytest: No such file or directory`
 
-4. `wc -l src/seo_factory/*.py src/seo_factory/*/*.py`
-- Verified source files are small; each file is far below 200 lines.
+3. `make lint`
+- Result: failed (ruff not installed in venv).
+- Key output: `.venv/bin/ruff: No such file or directory`
 
-5. `python3 -m pytest`
-- Output: `1 passed in 0.11s`
+4. `make demo-a`
+- Result: failed because editable install was not completed.
+- Key output: `ModuleNotFoundError: No module named 'seo_factory'`
 
-6. `python3 -m ruff check .`
-- Output: `No module named ruff`
+5. `make demo-b`
+- Result: failed for same reason as above.
 
-7. `python3 -m ruff format --check .`
-- Output: `No module named ruff`
+6. `make demo-c`
+- Result: failed for same reason as above.
 
-8. `PYTHONPATH=src python3 -m seo_factory.cli health`
-- Output shows resolved settings:
-  - `no_llm_mode: true`
-  - `offline_mode: true`
-  - `output_dir: outputs`
-  - `seed: 42`
+Fallback local verification commands (executed):
 
-9. `git status --short`
-- Confirmed new files are uncommitted and tracked as expected.
+7. `PYTHONPATH=src python3 -m pytest -q`
+- Output: `5 passed`
 
-## 4) Next Steps for Stage 2
-1. Implement real batch pipeline in `cli.py` and orchestrator with CSV parsing + summary writer.
-2. Add stronger extraction parsing from fixture HTML (title, headings, key paragraphs).
-3. Expand quality rule registry and formalize scoring weights from `docs/CONTRACTS.md`.
-4. Implement deterministic summary CSV generation and error handling contracts.
-5. Add tests for orchestrator outputs, determinism hash checks, and batch ordering.
-6. Install dev tooling locally (`ruff`) and enforce lint/format targets in `Makefile`.
+8. `NO_LLM_MODE=true OFFLINE_MODE=true PYTHONPATH=src python3 -m seo_factory.cli demo-a`
+- Output: `Scenario A complete: outputs/demo_a/demo-a-001/item_001`
+
+9. `NO_LLM_MODE=true OFFLINE_MODE=true PYTHONPATH=src python3 -m seo_factory.cli demo-b`
+- Output: `Scenario B complete: outputs/demo_b/demo-b-001/summary.csv`
+
+10. `NO_LLM_MODE=true OFFLINE_MODE=true SEED=42 PYTHONPATH=src python3 -m seo_factory.cli demo-c`
+- Output: `Scenario C complete: outputs/demo_c/determinism_hashes.json (identical=True)`
+
+11. `PYTHONPATH=src python3 -m seo_factory.cli run-one --source fixtures/pages/demo_a.html --keyword "product analytics automation" --job-id item_001 --run-id demo-a-001 --output-dir outputs/demo_a`
+- Output: `Wrote: outputs/demo_a/demo-a-001/item_001`
+
+12. `PYTHONPATH=src python3 -m seo_factory.cli run-batch --csv fixtures/demo_batch.csv --run-id demo-b-001 --output-dir outputs/demo_b`
+- Output: `Wrote: outputs/demo_b/demo-b-001/summary.csv`
+
+13. `find outputs -maxdepth 4 -type f | sort | head -n 40`
+- Output files:
+  - `outputs/.gitkeep`
+  - `outputs/demo_a/demo-a-001/item_001/meta.json`
+  - `outputs/demo_a/demo-a-001/item_001/page.md`
+  - `outputs/demo_a/demo-a-001/item_001/quality_report.json`
+  - `outputs/demo_b/demo-b-001/item_001/meta.json`
+  - `outputs/demo_b/demo-b-001/item_001/page.md`
+  - `outputs/demo_b/demo-b-001/item_001/quality_report.json`
+  - `outputs/demo_b/demo-b-001/item_002/meta.json`
+  - `outputs/demo_b/demo-b-001/item_002/page.md`
+  - `outputs/demo_b/demo-b-001/item_002/quality_report.json`
+  - `outputs/demo_b/demo-b-001/item_003/meta.json`
+  - `outputs/demo_b/demo-b-001/item_003/page.md`
+  - `outputs/demo_b/demo-b-001/item_003/quality_report.json`
+  - `outputs/demo_b/demo-b-001/summary.csv`
+  - `outputs/demo_c/determinism_hashes.json`
+
+14. `PYTHONPATH=src python3 -m ruff check .`
+- Result: failed
+- Key output: `No module named ruff`
+
+## 4) Deviations From DEMO_SCENARIOS
+- Scenario behavior/output paths: none.
+- Operational deviation: required `make` commands could not complete due offline dependency installation failure in this environment. Functional scenario execution was validated via direct `PYTHONPATH=src python3 -m seo_factory.cli ...` commands.
+
+## 5) Next Steps: Stage 3 (n8n Docker)
+1. Add Docker Compose profile with local-only services (`app`, optional `n8n`) and bind-mounted `fixtures/` + `outputs/`.
+2. Add n8n workflow that triggers `run-one` and `run-batch` commands via local exec nodes.
+3. Add deterministic workflow inputs and run metadata capture for reproducible runs.
+4. Add offline smoke script to execute scenarios A/B/C through Docker/n8n and verify hashes.

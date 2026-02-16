@@ -1,41 +1,63 @@
-"""Deterministic template-based content generator stub."""
+"""Deterministic template-based content generation."""
 
 from __future__ import annotations
 
-from hashlib import sha1
+import re
+from pathlib import Path
+
+from seo_factory.domain.models import ExtractedContent
 
 
-def _deterministic_slug(keyword: str) -> str:
-    return "-".join(keyword.lower().strip().split())
+def slugify(text: str) -> str:
+    """Convert text into deterministic kebab-case."""
+
+    slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    return slug or "untitled"
 
 
-def generate_markdown_and_meta(job_id: str, keyword: str, html_text: str) -> tuple[str, dict[str, str]]:
-    """Return deterministic markdown and metadata for a job."""
+def _build_meta_title(keyword: str, source_h1: str) -> str:
+    title = f"{keyword.title()} | {source_h1}"
+    return title[:70].rstrip()
 
-    excerpt = " ".join(html_text.split())[:120]
-    digest = sha1(f"{job_id}|{keyword}".encode("utf-8")).hexdigest()[:8]
-    slug = _deterministic_slug(keyword)
 
-    markdown = "\n".join(
-        [
-            f"# {keyword.title()}",
-            "",
-            f"This draft targets keyword: **{keyword}**.",
-            f"Source digest: `{digest}`.",
-            "",
-            "## Summary",
-            excerpt,
-            "",
-            "## Next Steps",
-            "- Review claims against source content.",
-            "- Edit tone for your target audience.",
-        ]
-    )
+def _build_meta_description(keyword: str, paragraphs: list[str]) -> str:
+    base = paragraphs[0] if paragraphs else "Deterministic offline SEO draft from local fixture content."
+    description = f"{keyword}: {base}"
+    return description[:160].rstrip()
 
+
+def generate_markdown_and_meta(
+    source_path: Path,
+    keyword: str,
+    content: ExtractedContent,
+) -> tuple[str, dict[str, str]]:
+    """Generate deterministic markdown and metadata for one fixture."""
+
+    slug = slugify(keyword)
+    h1 = f"{keyword.title()} - {content.h1}"
+    summary_line = content.paragraphs[0] if content.paragraphs else "No summary paragraph found."
+    details = content.paragraphs[1:3]
+
+    body_lines = [
+        f"# {h1}",
+        "",
+        f"This draft targets keyword: **{keyword}**.",
+        "",
+        "## Summary",
+        summary_line,
+        "",
+        "## Next Steps",
+    ]
+    if details:
+        body_lines.extend([f"- {line}" for line in details])
+    else:
+        body_lines.append("- Add supporting points from source content.")
+
+    markdown = "\n".join(body_lines)
     meta = {
-        "title": f"{keyword.title()} | SEO Content Draft",
-        "description": f"Deterministic draft for {keyword}.",
+        "title": _build_meta_title(keyword, content.h1),
+        "description": _build_meta_description(keyword, content.paragraphs),
         "slug": slug,
-        "canonical_url": f"local://fixture/{job_id}",
+        "canonical_url": f"local://{source_path.as_posix()}",
     }
     return markdown, meta
