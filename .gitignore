@@ -23,8 +23,16 @@ dist/
 # Runtime output
 outputs/*
 !outputs/.gitkeep
+inputs/uploads/*
+!inputs/uploads/.gitkeep
 
 # OS/editor
 .DS_Store
 .vscode/
 .idea/
+
+# Local n8n state
+infra/n8n/.n8n/database.sqlite*
+
+# Local field fixtures
+fixtures/real/

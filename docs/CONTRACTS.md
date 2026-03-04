@@ -1,65 +1,63 @@
 # Contracts
 
-## Input Schema
+## API Input Contracts
 
-### Single Job (`JobSpec`)
-- `job_id` (string, required): stable identifier (e.g., `item_001`).
-- `source_path` (path, required): local HTML fixture path.
-- `target_keyword` (string, required): target SEO phrase.
-- `run_id` (string, required): run namespace (e.g., `demo-a-001`).
+### `POST /run-one`
+- Required:
+  - `keyword` (string, non-empty)
+  - `job_id` (string, non-empty)
+  - `run_id` (string, non-empty)
+- Source variants:
+  - `source_path` (must resolve under `fixtures/` or `inputs/`)
+  - `html_content` with optional `source_filename` (`.html`/`.htm`)
+- Priority:
+  - If both are provided, `html_content` path is used.
+- Optional:
+  - `output_dir` (string path). Empty or missing falls back to `OUTPUT_DIR` (default `outputs`).
 
-### Batch CSV
-- File: `fixtures/demo_batch.csv`
-- Columns:
-  - `job_id`
-  - `source_path`
-  - `target_keyword`
-- Determinism rule: process rows in file order.
+### `POST /run-batch`
+- Required:
+  - `run_id` (string, non-empty)
+- Source variants:
+  - `csv_path` (must resolve under `fixtures/` or `inputs/`)
+  - `csv_content` with optional `csv_filename` (`.csv`)
+- Optional:
+  - `output_dir` (same fallback behavior as `/run-one`).
 
-## Output Schema
+## API Output Contracts
 
-### `JobResult`
-- `job_id` (string)
-- `run_id` (string)
-- `source_path` (path)
-- `markdown` (string)
-- `meta` (object)
-- `quality_report` (object)
-- `status` (string)
-- `error_message` (string | null)
+### Shared Success Fields
+- `status` (`"success"`)
+- `quality_score` (number)
+- `passed` (boolean)
+- `output_paths` (object with key file/dir paths)
+- `hashes` (object of deterministic hashes for key artifacts)
 
-### `meta.json`
-- `title` (string)
-- `description` (string)
-- `slug` (string)
-- `canonical_url` (string)
+### `/run-one` Output Paths
+- `job_dir`
+- `page`
+- `meta`
+- `quality`
 
-### `quality_report.json`
-- `checks` (object[string -> bool])
-- `quality_score` (0-100 integer)
-- `passed` (bool)
+### `/run-batch` Output Paths
+- `run_dir`
+- `summary_csv`
 
-## Folder Layout Contract
-- Root output path: `OUTPUT_DIR` (default `outputs/`).
-- Per run: `outputs/<run_id>/`
-- Per item: `outputs/<run_id>/<job_id>/`
-- Required files per item:
-  - `page.md`
-  - `meta.json`
-  - `quality_report.json`
+## UI Contract
+- `GET /` redirects (`307`) to `/ui`.
+- `GET /ui` returns `text/html`.
+- UI includes two modes:
+  - Single HTML run (calls `/run-one`)
+  - Batch CSV upload (calls `/run-batch`)
+- UI shows status, quality score, pass/fail, and output paths, plus error box for failed requests.
 
-## Determinism Rules
-- Given same fixture file, keyword, run config, and seed, generated content must be identical.
-- JSON keys must be written in stable order when applicable.
-- Batch summary rows must preserve original CSV order.
-- Dynamic timestamps are disallowed in artifact body content for deterministic mode.
-
-## Configuration Contract
-- Env vars:
-  - `NO_LLM_MODE` (bool)
-  - `OFFLINE_MODE` (bool)
-  - `OUTPUT_DIR` (path)
-  - `SEED` (int >= 0)
-- Secrets policy:
-  - Secrets must be provided only via environment variables.
-  - No secrets committed in repository files.
+## Filesystem Contract
+- Default output root: `OUTPUT_DIR` env var, default `outputs/`.
+- Single run artifacts:
+  - `outputs/<run_id>/<job_id>/page.md`
+  - `outputs/<run_id>/<job_id>/meta.json`
+  - `outputs/<run_id>/<job_id>/quality_report.json`
+- Batch summary:
+  - `outputs/<run_id>/summary.csv`
+- Uploaded UI files are staged locally:
+  - `inputs/uploads/<run_id>/...`

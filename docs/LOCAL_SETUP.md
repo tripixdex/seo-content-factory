@@ -1,21 +1,33 @@
 # Local Setup
 
-## Quickstart (Online)
-1. Run `make setup`.
-2. Run `make test`.
-3. Run `make demo-a`.
+## One-Command MVP Run
+1. `make setup`
+2. `make up OPEN_UI=1`
+3. Use UI at `http://127.0.0.1:8000/ui`
+4. `make down`
 
-## Quickstart (Offline)
-1. While online once, run `make setup` then `make vendor`.
-2. Disconnect from internet.
-3. Run `make setup-offline`.
-4. Run `make test` and demos (`make demo-a`, `make demo-b`, `make demo-c`).
+`make up` behavior:
+- Kills stale listeners on port `8000`.
+- Starts API in background and stores PID in `.tmp/api.pid`.
+- Waits until `/health` returns `{"status":"ok"}` (max 10s).
+- Opens `/ui` only when `OPEN_UI=1`.
 
-## Wheelhouse Notes
-- Default wheelhouse path: `.vendor/wheels`.
-- You can override with: `make setup-offline WHEELHOUSE_DIR=/path/to/wheels`.
-- The wheelhouse directory is gitignored by default to avoid repository bloat.
+`make down` behavior:
+- Stops API by PID file if running.
+- Cleans stale PID file safely.
 
-## Runtime Offline Guarantee
-- `OFFLINE_MODE=true` keeps demo runs local and fixture-only.
-- Demos process files under `fixtures/`; they do not fetch internet content.
+Use `make api` for foreground debugging.
+
+## UI Usage Notes
+- Single run tab:
+  - Upload `.html/.htm`.
+  - Set `keyword`, `job_id`, `run_id`.
+  - Optional `output_dir` (empty means default `OUTPUT_DIR`, usually `outputs`).
+- Batch run tab:
+  - Upload `.csv` with columns: `job_id,source_path,target_keyword`.
+  - Set `run_id`.
+  - Optional `output_dir` (same default behavior).
+
+## Offline-First Expectations
+- Make targets start API with `NO_LLM_MODE=true` and `OFFLINE_MODE=true`.
+- Inputs are local files only (`fixtures/` and `inputs/`), with uploaded files staged under `inputs/uploads/`.

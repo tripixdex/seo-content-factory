@@ -1,82 +1,72 @@
 # REPORT
 
 ## 1) Executive summary
-- Stage 3 codebase is present with API, n8n compose assets, and workflow JSON in repo.
-- Ruff lint is clean in the project venv.
-- Test suite passes in the current venv: `8 passed`.
-- `make setup` currently fails on this machine due package index resolution during editable install build deps.
-- FastAPI `TestClient` dependency requirement is satisfied in the active venv (`httpx` installed).
-- `requirements-lock.txt` was updated to match installed `httpx` version for reproducibility.
-- Existing demo artifacts are present under `outputs/demo_a`, `outputs/demo_b`, and `outputs/demo_c`.
+- MVP UX/demo flow is now ready for a non-technical 60-second walkthrough.
+- `make up`/`make down` behavior is hardened: stale port cleanup, PID file handling, health-gated startup, optional UI open.
+- `/ui` now supports single HTML and batch CSV modes with clearer guidance, error handling, and output visibility.
+- API contract still supports both `source_path` and `html_content (+ source_filename)` for `/run-one`; `/run-batch` now also supports CSV upload content for UI flow.
+- Runtime checks, lint, formatting, and tests were executed successfully (see section 3).
 
-## 2) Environment
-- OS: macOS `26.2` (`Darwin`)
-- Python: `3.13.5`
-- CPU arch: `arm64`
-- venv: `/Users/vladgurov/Desktop/work/seo-content-factory/.venv`
+## 2) Files changed
+- `Makefile`
+- `src/seo_factory/api/app.py`
+- `src/seo_factory/api/ui_page.py` (new)
+- `tests/test_api_smoke.py`
+- `README.md`
+- `docs/LOCAL_SETUP.md`
+- `docs/CONTRACTS.md`
+- `REPORT.md`
 
-## 3) Reproducibility status (checklist)
-- [ ] `make setup`: **FAIL**
-  - Evidence: `ERROR: No matching distribution found for setuptools>=68`.
-- [x] `make lint`: **PASS**
-  - Evidence: `All checks passed!`.
-- [x] `make test`: **PASS**
-  - Evidence: `8 passed in 0.28s`.
-- [ ] `make demo-a`: **NOT RUN** (not executed in this verification session).
-- [ ] `make demo-b`: **NOT RUN** (not executed in this verification session).
-- [ ] `make demo-c`: **NOT RUN** (not executed in this verification session).
+Hygiene/index updates:
+- Removed from git index (kept on disk):  
+  - `infra/n8n/.n8n/database.sqlite`  
+  - `infra/n8n/.n8n/database.sqlite-shm`  
+  - `infra/n8n/.n8n/database.sqlite-wal`
 
-## 4) Dependencies note
-- `fastapi.testclient.TestClient` (Starlette TestClient) requires `httpx`.
-- Resolved in current venv (`pip show httpx`): `Version: 0.28.1`.
-- Lock alignment fix applied: `requirements-lock.txt` updated from `httpx==0.27.2` to `httpx==0.28.1`.
+## 3) Commands run + short outputs
+- `make format`
+  - `.venv/bin/python -m ruff format .`
+  - `19 files left unchanged`
+- `make lint`
+  - `.venv/bin/python -m ruff check .`
+  - `All checks passed!`
+- `make test`
+  - `.venv/bin/python -m pytest`
+  - `12 passed in 0.16s`
+- `make down || true`
+  - `API pid file not found; nothing to stop.`
+- `make up OPEN_UI=0`
+  - `Starting API on http://127.0.0.1:8000`
+- `curl -s http://127.0.0.1:8000/health`
+  - `{"status":"ok","version":"0.1.0","no_llm_mode":true,"offline_mode":true}`
+- `curl -I http://127.0.0.1:8000/ui`
+  - `HTTP/1.1 200 OK`
+  - `content-type: text/html; charset=utf-8`
+- `make down`
+  - `Stopped API (pid=4108)`
 
-## 5) Commands executed (copy-paste)
-```bash
-$ make setup
-python3 -m venv .venv
-.venv/bin/python -m pip install -U pip setuptools wheel
-.venv/bin/python -m pip install -e ".[dev]"
-ERROR: No matching distribution found for setuptools>=68
-make: *** [setup] Error 1
+Note:
+- For this execution environment, `make down/up` + `curl` + `make down` were executed in one shell invocation so the background API process remained available for the required checks.
 
-$ make lint
-.venv/bin/python -m ruff check .
-All checks passed!
+## 4) What UX changed
+- UI now has a top “Quick demo steps” section for first-time reviewers.
+- Added clear notes in UI:
+  - accepted input types,
+  - offline/local processing behavior,
+  - default output write location.
+- Single mode (`/run-one`) improvements:
+  - optional `output_dir` input (empty => default `OUTPUT_DIR` / `outputs`),
+  - success panel with `status`, `quality_score`, `passed`, and output paths.
+- Batch mode (`/run-batch`) added:
+  - CSV upload in UI,
+  - request sent to `/run-batch`,
+  - response shown with `status`, `quality_score`, `passed`, and key paths.
+- Added visible error box for failed API requests.
+- Added “Copy output path” button in result panel.
+- `GET /` now redirects to `/ui`.
 
-$ make test
-.venv/bin/python -m pytest
-........                                                                 [100%]
-8 passed in 0.28s
-
-$ uname -s && uname -m && .venv/bin/python -V && .venv/bin/python -m pip show httpx | sed -n '1,20p'
-Darwin
-arm64
-Python 3.13.5
-Name: httpx
-Version: 0.28.1
-
-$ sw_vers -productVersion
-26.2
-```
-
-## 6) Artifacts produced
-- `outputs/demo_a/demo-a-001/item_001/page.md`
-- `outputs/demo_a/demo-a-001/item_001/meta.json`
-- `outputs/demo_a/demo-a-001/item_001/quality_report.json`
-- `outputs/demo_b/demo-b-001/summary.csv`
-- `outputs/demo_b/demo-b-001/item_001/page.md`
-- `outputs/demo_b/demo-b-001/item_002/page.md`
-- `outputs/demo_b/demo-b-001/item_003/page.md`
-- `outputs/demo_c/determinism_hashes.json`
-
-## 7) Next step: Stage 3.2 runtime verification
-- Run API locally:
-  - `make api`
-- Verify API health from another terminal:
-  - `curl http://127.0.0.1:8000/health`
-- Start n8n and import workflow:
-  - `cd infra/n8n && docker compose up -d`
-  - Open `http://localhost:5678`
-  - Import `workflows/n8n/seo_factory_demo.json`
-  - Ensure HTTP node URL uses `http://host.docker.internal:8000`
+## 5) Remaining limitations before MVP freeze
+- UI is intentionally minimal (no persistent run history, no progress streaming).
+- Batch response shows aggregate quality only; per-row drilldown remains in `summary.csv`.
+- Clipboard API for “Copy output path” depends on browser permissions/context.
+- Existing repo still has other unrelated modified runtime files (for example `infra/n8n/.n8n/n8nEventLog.log`), not changed by this MVP UX task.
