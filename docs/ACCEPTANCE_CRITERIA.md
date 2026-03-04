@@ -2,19 +2,21 @@
 
 ## Feature-Level Definition of Done
 
-### 1) Single URL Processing
-- [ ] Given one URL and keyword, system generates exactly 3 artifacts: `page.md`, `meta.json`, `quality_report.json`.
+### 1) Single Local HTML Processing
+- [ ] Given one local HTML input (`source_path` or `html_content`) and keyword, system generates exactly 3 artifacts: `page.md`, `meta.json`, `quality_report.json`.
 - [ ] Artifacts are written under run-scoped output directory.
 - [ ] `meta.json` includes required keys: `title`, `description`, `slug`, `canonical_url`.
 - [ ] `quality_report.json` contains individual checks and aggregate score.
 - [ ] With same input/config and seed, outputs are byte-identical across reruns.
 
 ### 2) Batch CSV Processing
-- [ ] Given valid CSV with `source_url,target_keyword`, all rows are processed in deterministic order.
+- [ ] Given valid CSV with `job_id,source_path,target_keyword`, all rows are processed in deterministic order.
 - [ ] Each row produces per-item artifact set (page/meta/report).
-- [ ] `summary.csv` exists and contains `row_id`, `source_url`, `slug`, `quality_score`, `status`, `error_message`.
+- [ ] `summary.csv` exists and contains `row_id`, `job_id`, `source_path`, `slug`, `quality_score`, `status`, `error_message`.
 - [ ] Failures in one row do not block processing of remaining rows.
 - [ ] Total processed rows in summary equals total input rows.
+- [ ] Batch response semantics are explicit: `status=success` only when all rows succeed, otherwise `status=partial_success` with `passed=false`.
+- [ ] Batch `quality_score` policy is documented and deterministic (failed rows contribute `0.0`).
 
 ### 3) No LLM Mode (Deterministic/Offline)
 - [ ] `NO_LLM_MODE=true` runs without requiring model downloads or paid APIs.

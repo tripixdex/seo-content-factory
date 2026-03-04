@@ -9,6 +9,7 @@ from pathlib import Path
 from seo_factory.domain.models import JobSpec
 from seo_factory.pipeline.orchestrator import run_job
 from seo_factory.storage.fs import write_job_result, write_summary_csv
+from seo_factory.validation import resolve_allowed_source_path, validate_safe_identifier
 
 
 def _quality_score_from_report(path: Path) -> float:
@@ -19,12 +20,13 @@ def _quality_score_from_report(path: Path) -> float:
 def run_batch_from_csv(csv_path: Path, run_id: str, output_dir: Path) -> Path:
     """Run jobs in CSV order and write deterministic summary."""
 
+    safe_run_id = validate_safe_identifier(run_id, "run_id")
     rows: list[dict[str, str]] = []
     with csv_path.open("r", newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         for index, row in enumerate(reader, start=1):
             job_id = (row.get("job_id") or "").strip()
-            source_path = Path((row.get("source_path") or "").strip())
+            source_path_input = (row.get("source_path") or "").strip()
             keyword = (row.get("target_keyword") or "").strip()
 
             status = "success"
@@ -33,21 +35,23 @@ def run_batch_from_csv(csv_path: Path, run_id: str, output_dir: Path) -> Path:
             quality_score = "0.0"
 
             try:
-                if not job_id or not keyword or not str(source_path):
+                if not job_id or not keyword or not source_path_input:
                     raise ValueError("CSV row missing required fields")
+                safe_job_id = validate_safe_identifier(job_id, "job_id")
+                source_path = resolve_allowed_source_path(source_path_input)
                 spec = JobSpec(
-                    job_id=job_id,
+                    job_id=safe_job_id,
                     source_path=source_path,
                     target_keyword=keyword,
-                    run_id=run_id,
+                    run_id=safe_run_id,
                 )
                 result = run_job(spec)
                 write_job_result(output_dir, result)
                 slug = result.meta.get("slug", "")
 
-                quality_path = output_dir / run_id / job_id / "quality_report.json"
+                quality_path = output_dir / safe_run_id / safe_job_id / "quality_report.json"
                 quality_score = str(_quality_score_from_report(quality_path))
-            except Exception as exc:  # noqa: BLE001
+            except ValueError as exc:
                 status = "failed"
                 error_message = str(exc)
 
@@ -55,7 +59,7 @@ def run_batch_from_csv(csv_path: Path, run_id: str, output_dir: Path) -> Path:
                 {
                     "row_id": str(index),
                     "job_id": job_id,
-                    "source_path": str(source_path),
+                    "source_path": source_path_input,
                     "slug": slug,
                     "quality_score": quality_score,
                     "status": status,
@@ -63,4 +67,4 @@ def run_batch_from_csv(csv_path: Path, run_id: str, output_dir: Path) -> Path:
                 }
             )
 
-    return write_summary_csv(output_dir, run_id, rows)
+    return write_summary_csv(output_dir, safe_run_id, rows)

@@ -3,9 +3,9 @@
 ## MVP Scope (Must-Haves)
 - CLI-first local workflow for macOS Apple Silicon.
 - Input modes:
-  - Single URL input.
+  - Single local HTML input (`source_path` or `html_content`).
   - Batch CSV input.
-- Output artifacts per URL:
+- Output artifacts per item:
   - SEO markdown page draft.
   - Metadata JSON (title, description, slug, canonical).
   - Quality report JSON/Markdown with pass/fail checks.

@@ -1,4 +1,4 @@
-.PHONY: setup setup-offline vendor lint format test demo-a demo-b demo-c demo-ui api api-smoke up up-api n8n-up n8n-down open-ui down clean clean-uploads
+.PHONY: setup setup-offline vendor lint format test demo-a demo-b demo-c demo-ui api api-smoke up up-api n8n-up n8n-down open-ui down status clean clean-uploads
 
 VENV=.venv
 PYTHON=$(VENV)/bin/python
@@ -49,21 +49,31 @@ api:
 
 up-api:
 	@mkdir -p .tmp
-	@stale_pids=$$(lsof -ti tcp:$(PORT) -sTCP:LISTEN 2>/dev/null || true); \
-	if [ -n "$$stale_pids" ]; then \
-		echo "Stopping stale listener(s) on :$(PORT): $$stale_pids"; \
-		kill $$stale_pids >/dev/null 2>&1 || true; \
-		sleep 1; \
-		remaining=$$(lsof -ti tcp:$(PORT) -sTCP:LISTEN 2>/dev/null || true); \
-		if [ -n "$$remaining" ]; then \
-			kill -9 $$remaining >/dev/null 2>&1 || true; \
-		fi; \
-	fi
 	@if [ -f "$(API_PID_FILE)" ]; then \
 		old_pid=$$(cat "$(API_PID_FILE)"); \
-		if ! kill -0 $$old_pid >/dev/null 2>&1; then \
+		if kill -0 $$old_pid >/dev/null 2>&1; then \
+			echo "Stopping managed API (pid=$$old_pid) before restart"; \
+			kill $$old_pid >/dev/null 2>&1 || true; \
+			for _ in $$(seq 1 20); do \
+				if ! kill -0 $$old_pid >/dev/null 2>&1; then \
+					break; \
+				fi; \
+				sleep 0.25; \
+			done; \
+			if kill -0 $$old_pid >/dev/null 2>&1; then \
+				echo "Managed API did not stop cleanly (pid=$$old_pid)"; \
+				exit 1; \
+			fi; \
+			rm -f "$(API_PID_FILE)"; \
+		else \
+			echo "Removing stale API pid file (pid=$$old_pid)"; \
 			rm -f "$(API_PID_FILE)"; \
 		fi; \
+	fi
+	@port_pid=$$(lsof -ti tcp:$(PORT) -sTCP:LISTEN 2>/dev/null | head -n1 || true); \
+	if [ -n "$$port_pid" ]; then \
+		echo "Port $(PORT) is already in use by pid=$$port_pid (not managed by $(API_PID_FILE)); refusing to start."; \
+		exit 1; \
 	fi
 	@echo "Starting API on http://$(HOST):$(PORT)"
 	@NO_LLM_MODE=true OFFLINE_MODE=true $(PYTHON) -m uvicorn seo_factory.api.app:app --host $(HOST) --port $(PORT) >/tmp/seo_factory_api.log 2>&1 & \
@@ -115,6 +125,23 @@ down:
 		rm -f "$(API_PID_FILE)"; \
 	else \
 		echo "API pid file not found; nothing to stop."; \
+	fi
+
+status:
+	@if [ -f "$(API_PID_FILE)" ]; then \
+		pid=$$(cat "$(API_PID_FILE)"); \
+		if kill -0 $$pid >/dev/null 2>&1; then \
+			echo "API process is running (pid=$$pid)."; \
+			if curl -fsS "http://$(HOST):$(PORT)/health" 2>/dev/null | grep -q '"status":[[:space:]]*"ok"'; then \
+				echo "Health check: ok"; \
+			else \
+				echo "Health check: unreachable or non-ok"; \
+			fi; \
+		else \
+			echo "API pid file exists but process is not running (pid=$$pid)."; \
+		fi; \
+	else \
+		echo "API is not running (no pid file)."; \
 	fi
 
 demo-ui: up-api

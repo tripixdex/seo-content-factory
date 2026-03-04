@@ -8,12 +8,16 @@ import json
 from pathlib import Path
 
 from seo_factory.domain.models import JobResult
+from seo_factory.validation import resolve_allowed_output_dir, validate_safe_identifier
 
 
 def build_job_dir(output_dir: Path, run_id: str, job_id: str) -> Path:
     """Create and return the per-job directory."""
 
-    job_dir = output_dir / run_id / job_id
+    safe_run_id = validate_safe_identifier(run_id, "run_id")
+    safe_job_id = validate_safe_identifier(job_id, "job_id")
+    safe_output_dir = resolve_allowed_output_dir(str(output_dir))
+    job_dir = safe_output_dir / safe_run_id / safe_job_id
     job_dir.mkdir(parents=True, exist_ok=True)
     return job_dir
 
@@ -35,7 +39,9 @@ def write_job_result(output_dir: Path, result: JobResult) -> Path:
 def write_summary_csv(output_dir: Path, run_id: str, rows: list[dict[str, str]]) -> Path:
     """Write deterministic batch summary CSV."""
 
-    run_dir = output_dir / run_id
+    safe_run_id = validate_safe_identifier(run_id, "run_id")
+    safe_output_dir = resolve_allowed_output_dir(str(output_dir))
+    run_dir = safe_output_dir / safe_run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     summary_path = run_dir / "summary.csv"
     columns = [
@@ -63,7 +69,9 @@ def file_sha256(path: Path) -> str:
 def write_json(path: Path, payload: dict) -> Path:
     """Write JSON payload with deterministic key ordering."""
 
-    path.parent.mkdir(parents=True, exist_ok=True)
+    safe_parent = resolve_allowed_output_dir(str(path.parent))
+    safe_path = safe_parent / path.name
+    safe_path.parent.mkdir(parents=True, exist_ok=True)
     payload_json = json.dumps(payload, indent=2, sort_keys=True)
-    path.write_text(payload_json, encoding="utf-8")
-    return path
+    safe_path.write_text(payload_json, encoding="utf-8")
+    return safe_path

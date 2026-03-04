@@ -7,14 +7,19 @@
 4. `make down`
 
 `make up` behavior:
-- Kills stale listeners on port `8000`.
+- If `.tmp/api.pid` points to a live process, stops that managed API first and restarts it.
+- Refuses to start if port `8000` is occupied by a different process.
 - Starts API in background and stores PID in `.tmp/api.pid`.
 - Waits until `/health` returns `{"status":"ok"}` (max 10s).
 - Opens `/ui` only when `OPEN_UI=1`.
 
 `make down` behavior:
-- Stops API by PID file if running.
-- Cleans stale PID file safely.
+- Stops only the process from `.tmp/api.pid` if present.
+- If pid file is missing, prints a message and exits `0`.
+
+`make status` behavior:
+- Reports whether the managed API pid is alive.
+- Runs a `/health` check and prints `ok` vs unreachable/non-ok.
 
 Use `make api` for foreground debugging.
 
@@ -22,11 +27,11 @@ Use `make api` for foreground debugging.
 - Single run tab:
   - Upload `.html/.htm`.
   - Set `keyword`, `job_id`, `run_id`.
-  - Optional `output_dir` (empty means default `OUTPUT_DIR`, usually `outputs`).
+  - Optional `output_dir` (must stay inside `outputs/`; empty means default `OUTPUT_DIR`, usually `outputs`).
 - Batch run tab:
   - Upload `.csv` with columns: `job_id,source_path,target_keyword`.
   - Set `run_id`.
-  - Optional `output_dir` (same default behavior).
+  - Optional `output_dir` (same `outputs/` restriction and default behavior).
 
 ## Offline-First Expectations
 - Make targets start API with `NO_LLM_MODE=true` and `OFFLINE_MODE=true`.

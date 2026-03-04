@@ -18,12 +18,12 @@ Why now: local AI tooling, deterministic pipelines, and open-source NLP stacks m
 - Requires predictable runs for demos, handoffs, and portfolio credibility.
 
 ## Value Proposition
-SEO Content Automation Factory provides a deterministic, free-to-run, local-first pipeline that converts source URLs (single or batch) into structured SEO page drafts with metadata and quality checks. It prioritizes reproducibility and operational clarity over black-box generation.
+SEO Content Automation Factory provides a deterministic, free-to-run, local-first pipeline that converts local HTML inputs (single or batch CSV) into structured SEO page drafts with metadata and quality checks. It prioritizes reproducibility and operational clarity over black-box generation.
 
 ## User Journeys
 
-### Journey 1: Single URL to Publish-Ready Draft
-1. User provides one input URL and target keyword/theme.
+### Journey 1: Single Local HTML to SEO Draft
+1. User provides one local HTML input and target keyword/theme.
 2. Pipeline extracts content and applies deterministic transformation/generation.
 3. System outputs:
    - SEO markdown page draft
@@ -31,8 +31,8 @@ SEO Content Automation Factory provides a deterministic, free-to-run, local-firs
    - Quality report with rule checks and score
 4. User reviews output and moves to CMS publishing workflow.
 
-### Journey 2: Batch URL Processing for Content Backlog
-1. User supplies CSV of source URLs plus optional keyword column.
+### Journey 2: Batch Local HTML Processing for Content Backlog
+1. User supplies CSV of local source paths plus keyword column.
 2. Pipeline runs all rows locally with stable ordering and consistent templates.
 3. System writes per-item outputs to folder structure and emits summary CSV.
 4. User sorts summary by quality score and prioritizes edits.
@@ -44,8 +44,8 @@ SEO Content Automation Factory provides a deterministic, free-to-run, local-firs
 4. User can still demo workflow and validate architecture offline.
 
 ## Success Metrics
-- Time-to-first-output (single URL): <= 60 seconds on Apple Silicon laptop for small pages.
-- Batch throughput: >= 20 URLs processed in one run without manual intervention.
+- Time-to-first-output (single local HTML input): <= 60 seconds on Apple Silicon laptop for small pages.
+- Batch throughput: >= 20 CSV rows processed in one run without manual intervention.
 - Determinism: repeated runs with same inputs/config produce byte-identical artifacts (except timestamp fields explicitly excluded).
 - Quality baseline: >= 90% of outputs pass required SEO checks in quality report.
 - Demo reliability: all 3 demo scenarios execute successfully offline in `NO_LLM_MODE`.

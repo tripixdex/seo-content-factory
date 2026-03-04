@@ -102,7 +102,7 @@ def build_ui_html(default_output_dir: str) -> str:
       <p><strong>Offline mode:</strong> all processing is local-only. No network fetches.</p>
       <p>
         <strong>Write location:</strong> defaults to
-        <code>{default_output_dir}</code> unless overridden.
+        <code>{default_output_dir}</code>. Any override must stay inside <code>outputs/</code>.
       </p>
     </div>
 
@@ -130,7 +130,7 @@ def build_ui_html(default_output_dir: str) -> str:
               <input id="single_run_id" value="ui-run-001" required />
             </div>
           </div>
-          <label for="single_output_dir">Output directory (optional)</label>
+          <label for="single_output_dir">Output directory in outputs/ (optional)</label>
           <input id="single_output_dir" placeholder="{default_output_dir}" />
           <button type="submit">Run Single</button>
         </form>
@@ -146,7 +146,7 @@ def build_ui_html(default_output_dir: str) -> str:
               <input id="batch_run_id" value="ui-batch-001" required />
             </div>
             <div>
-              <label for="batch_output_dir">Output directory (optional)</label>
+              <label for="batch_output_dir">Output directory in outputs/ (optional)</label>
               <input id="batch_output_dir" placeholder="{default_output_dir}" />
             </div>
           </div>

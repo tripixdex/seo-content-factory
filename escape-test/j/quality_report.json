@@ -1,0 +1,11 @@
+{
+  "checks": {
+    "heading_presence": true,
+    "keyword_in_h1": true,
+    "keyword_in_body": true,
+    "meta_title_length_ok": false,
+    "meta_description_length_ok": false
+  },
+  "quality_score": 0.6,
+  "passed": false
+}

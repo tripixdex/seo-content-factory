@@ -1,9 +1,9 @@
 # SEO Content Automation Factory
 
-FastAPI + local UI MVP for deterministic SEO content generation from HTML fixtures.
+FastAPI + local UI MVP for deterministic SEO draft generation from local HTML inputs.
 
 ## 30-Second Overview
-- Converts single HTML pages or batch CSV inputs into publish-ready SEO artifacts.
+- Converts single HTML pages or batch CSV inputs into deterministic SEO draft artifacts.
 - Gives non-technical reviewers a UI-first flow with clear pass/fail quality signals.
 - Stays offline-first and deterministic for repeatable demos and portfolio credibility.
 
@@ -26,9 +26,10 @@ make down
 
 ## Inputs / Outputs
 Inputs:
-- Single API/UI: `source_path` or `html_content` + `source_filename`
+- Single API/UI: local `source_path` or uploaded `html_content` + `source_filename`
 - Batch API/UI: `csv_path` or `csv_content` + `csv_filename`
-- Optional: `output_dir` (defaults to `OUTPUT_DIR`, usually `outputs`)
+- Optional: `output_dir` (must stay inside `outputs/`; defaults to `OUTPUT_DIR`, default `outputs`)
+- Size limits: `html_content` and `csv_content` are each limited to `1,000,000` bytes
 
 Produced artifacts:
 - `outputs/<run_id>/<job_id>/page.md`
@@ -49,7 +50,15 @@ Produced artifacts:
 ## Safety Notes
 - Offline-first: `make up` starts API with `NO_LLM_MODE=true OFFLINE_MODE=true`.
 - Path restrictions: source file paths must remain inside `fixtures/` or `inputs/`.
+- ID restrictions: `run_id` and `job_id` allow only `[A-Za-z0-9._-]` and reject `..`, `/`, `\`.
+- Output restrictions: `output_dir` must resolve inside `outputs/`.
 - Uploaded UI files are staged under `inputs/uploads/<run_id>/`.
+
+## Batch Semantics
+- If all rows succeed: API returns `status=success`, `passed=true`.
+- If any row fails: API returns `status=partial_success`, `passed=false`.
+- Batch `quality_score` is the average of per-row scores from `summary.csv`; failed rows contribute `0.0`.
+- Unexpected systemic batch failures return HTTP `500`.
 
 ## n8n Integration
 Start local API + n8n:

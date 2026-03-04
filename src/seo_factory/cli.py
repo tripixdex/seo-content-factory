@@ -12,8 +12,20 @@ from seo_factory.domain.models import JobSpec
 from seo_factory.pipeline.batch_runner import run_batch_from_csv
 from seo_factory.pipeline.orchestrator import run_job
 from seo_factory.storage.fs import file_sha256, write_job_result, write_json
+from seo_factory.validation import (
+    resolve_allowed_output_dir,
+    resolve_allowed_source_path,
+    validate_safe_identifier,
+)
 
 app = typer.Typer(help="SEO Content Automation Factory CLI")
+
+
+def _validated_output_dir(output_dir: Path) -> Path:
+    try:
+        return resolve_allowed_output_dir(str(output_dir))
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 def _require_deterministic_modes(settings: Settings) -> None:
@@ -29,11 +41,14 @@ def _run_one_internal(
     run_id: str,
     output_dir: Path,
 ) -> tuple[Path, dict[str, str]]:
+    safe_job_id = validate_safe_identifier(job_id, "job_id")
+    safe_run_id = validate_safe_identifier(run_id, "run_id")
+    safe_source = resolve_allowed_source_path(str(source))
     spec = JobSpec(
-        job_id=job_id,
-        source_path=source,
+        job_id=safe_job_id,
+        source_path=safe_source,
         target_keyword=keyword,
-        run_id=run_id,
+        run_id=safe_run_id,
     )
     result = run_job(spec)
     job_dir = write_job_result(output_dir, result)
@@ -57,11 +72,13 @@ def run_one(
     keyword: Annotated[str, typer.Option(...)],
     job_id: Annotated[str, typer.Option(...)],
     run_id: Annotated[str, typer.Option(...)],
-    output_dir: Annotated[Path, typer.Option(...)],
+    output_dir: Annotated[Path, typer.Option("--output-dir")] = Path("outputs"),
 ) -> None:
     """Run one offline job and write artifacts."""
 
-    job_dir, _ = _run_one_internal(source, keyword, job_id, run_id, output_dir)
+    job_dir, _ = _run_one_internal(
+        source, keyword, job_id, run_id, _validated_output_dir(output_dir)
+    )
     typer.echo(f"Wrote: {job_dir}")
 
 
@@ -72,11 +89,11 @@ def run_batch(
         typer.Option(..., "--csv", exists=True, file_okay=True, dir_okay=False),
     ],
     run_id: Annotated[str, typer.Option(..., "--run-id")],
-    output_dir: Annotated[Path, typer.Option(..., "--output-dir")],
+    output_dir: Annotated[Path, typer.Option("--output-dir")] = Path("outputs"),
 ) -> None:
     """Run batch jobs from CSV and write summary CSV."""
 
-    summary = run_batch_from_csv(csv_path, run_id, output_dir)
+    summary = run_batch_from_csv(csv_path, run_id, _validated_output_dir(output_dir))
     typer.echo(f"Wrote: {summary}")
 
 

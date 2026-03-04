@@ -40,7 +40,7 @@ def test_run_one_endpoint(tmp_path: Path) -> None:
             "keyword": "product analytics automation",
             "job_id": "item_001",
             "run_id": "api-run-one",
-            "output_dir": str(tmp_path / "api_one"),
+            "output_dir": "outputs/test_api_smoke/api_one",
         },
     )
     assert response.status_code == 200
@@ -60,7 +60,7 @@ def test_run_one_with_html_content(tmp_path: Path) -> None:
             "keyword": "product analytics automation",
             "job_id": "item_002",
             "run_id": "api-run-upload",
-            "output_dir": str(tmp_path / "api_upload"),
+            "output_dir": "outputs/test_api_smoke/api_upload",
         },
     )
 
@@ -77,7 +77,7 @@ def test_run_batch_endpoint(tmp_path: Path) -> None:
         json={
             "csv_path": "fixtures/demo_batch.csv",
             "run_id": "api-run-batch",
-            "output_dir": str(tmp_path / "api_batch"),
+            "output_dir": "outputs/test_api_smoke/api_batch",
         },
     )
     assert response.status_code == 200
@@ -95,7 +95,7 @@ def test_run_batch_with_csv_upload(tmp_path: Path) -> None:
             "csv_filename": "uploaded_batch.csv",
             "csv_content": csv_content,
             "run_id": "api-run-batch-upload",
-            "output_dir": str(tmp_path / "api_batch_upload"),
+            "output_dir": "outputs/test_api_smoke/api_batch_upload",
         },
     )
     assert response.status_code == 200

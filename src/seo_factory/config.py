@@ -7,6 +7,8 @@ from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from seo_factory.validation import resolve_allowed_output_dir
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
@@ -37,4 +39,7 @@ class Settings(BaseSettings):
         if not str(value).strip():
             msg = "OUTPUT_DIR must not be empty"
             raise ValueError(msg)
-        return value
+        try:
+            return resolve_allowed_output_dir(str(value))
+        except ValueError as exc:
+            raise ValueError("OUTPUT_DIR must resolve inside outputs/") from exc

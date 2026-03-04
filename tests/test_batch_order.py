@@ -22,7 +22,7 @@ def test_batch_summary_preserves_csv_order(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    summary_path = run_batch_from_csv(csv_path, "test-run", tmp_path / "out")
+    summary_path = run_batch_from_csv(csv_path, "test-run", Path("outputs/test_batch_order/out"))
     with summary_path.open("r", newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
 

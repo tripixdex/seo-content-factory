@@ -5,9 +5,9 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from seo_factory import __version__
 from seo_factory.api.ui_page import build_ui_html
@@ -16,9 +16,15 @@ from seo_factory.domain.models import JobSpec
 from seo_factory.pipeline.batch_runner import run_batch_from_csv
 from seo_factory.pipeline.orchestrator import run_job
 from seo_factory.storage.fs import file_sha256, write_job_result
+from seo_factory.validation import (
+    resolve_allowed_output_dir,
+    resolve_allowed_source_path,
+    validate_safe_identifier,
+)
 
 app = FastAPI(title="SEO Factory API", version=__version__)
-ALLOWED_INPUT_ROOTS = (Path("fixtures"), Path("inputs"))
+MAX_HTML_CONTENT_BYTES = 1_000_000
+MAX_CSV_CONTENT_BYTES = 1_000_000
 
 
 class RunOneRequest(BaseModel):
@@ -40,30 +46,27 @@ class RunBatchRequest(BaseModel):
 
 
 def _output_dir(path_value: str | None, settings: Settings) -> Path:
-    return Path(path_value) if path_value else settings.output_dir
+    return resolve_allowed_output_dir(path_value, settings.output_dir)
 
 
-def _resolve_allowed_source(path_value: str) -> Path:
-    candidate = Path(path_value)
-    for root in ALLOWED_INPUT_ROOTS:
-        root_resolved = root.resolve()
-        if not root_resolved.exists():
-            continue
-        resolved = (Path.cwd() / candidate).resolve(strict=True)
-        if root_resolved in resolved.parents or resolved == root_resolved:
-            return resolved
-    allowed = ", ".join(str(path) for path in ALLOWED_INPUT_ROOTS)
-    raise ValueError(f"source_path must be inside one of: {allowed}")
+def _ensure_payload_size(content: str, field_name: str, max_bytes: int) -> None:
+    size_bytes = len(content.encode("utf-8"))
+    if size_bytes > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"{field_name} exceeds max size of {max_bytes} bytes",
+        )
 
 
 def _save_uploaded_text(
     content: str, run_id: str, filename: str, suffixes: tuple[str, ...]
 ) -> Path:
+    safe_run_id = validate_safe_identifier(run_id, "run_id")
     safe_name = Path(filename).name
     if not safe_name.lower().endswith(suffixes):
         allowed = ", ".join(suffixes)
         raise ValueError(f"Uploaded file must end with one of: {allowed}")
-    target_dir = Path("inputs") / "uploads" / run_id
+    target_dir = Path("inputs") / "uploads" / safe_run_id
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / safe_name
     target_path.write_text(content, encoding="utf-8")
@@ -80,12 +83,14 @@ def _artifact_hashes(job_dir: Path) -> dict[str, str]:
 
 
 def _run_one_internal(source_path: Path, payload: RunOneRequest) -> dict[str, object]:
+    safe_job_id = validate_safe_identifier(payload.job_id, "job_id")
+    safe_run_id = validate_safe_identifier(payload.run_id, "run_id")
     result = run_job(
         JobSpec(
-            job_id=payload.job_id,
+            job_id=safe_job_id,
             source_path=source_path,
             target_keyword=payload.keyword,
-            run_id=payload.run_id,
+            run_id=safe_run_id,
         )
     )
     output_dir = _output_dir(payload.output_dir, Settings())
@@ -122,7 +127,8 @@ def health() -> dict[str, str | bool]:
 
 @app.get("/ui", response_class=HTMLResponse)
 def ui() -> str:
-    return build_ui_html(str(Settings().output_dir))
+    output_dir = resolve_allowed_output_dir(None, Settings().output_dir)
+    return build_ui_html(str(output_dir))
 
 
 @app.head("/ui")
@@ -131,29 +137,29 @@ def ui_head() -> HTMLResponse:
 
 
 @app.post("/run-one")
-async def run_one(request: Request) -> dict[str, object]:
+def run_one(payload: RunOneRequest) -> dict[str, object]:
     try:
-        payload = RunOneRequest.model_validate(await request.json())
         if payload.html_content:
+            _ensure_payload_size(payload.html_content, "html_content", MAX_HTML_CONTENT_BYTES)
             filename = payload.source_filename or f"{payload.job_id}.html"
             source_path = _save_uploaded_text(
                 payload.html_content, payload.run_id, filename, (".html", ".htm")
             )
         elif payload.source_path:
-            source_path = _resolve_allowed_source(payload.source_path)
+            source_path = resolve_allowed_source_path(payload.source_path)
         else:
             raise ValueError("Provide either html_content or source_path")
         return _run_one_internal(source_path, payload)
-    except (ValidationError, ValueError, FileNotFoundError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001
+    except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/run-batch")
 def run_batch(payload: RunBatchRequest) -> dict[str, object]:
     try:
+        validate_safe_identifier(payload.run_id, "run_id")
         if payload.csv_content:
+            _ensure_payload_size(payload.csv_content, "csv_content", MAX_CSV_CONTENT_BYTES)
             csv_path = _save_uploaded_text(
                 payload.csv_content,
                 payload.run_id,
@@ -161,7 +167,7 @@ def run_batch(payload: RunBatchRequest) -> dict[str, object]:
                 (".csv",),
             )
         elif payload.csv_path:
-            csv_path = _resolve_allowed_source(payload.csv_path)
+            csv_path = resolve_allowed_source_path(payload.csv_path)
         else:
             raise ValueError("Provide either csv_content or csv_path")
 
@@ -179,14 +185,17 @@ def run_batch(payload: RunBatchRequest) -> dict[str, object]:
                 if row.get("status") != "success":
                     passed = False
         avg_quality = round(sum(scores) / len(scores), 2) if scores else 0.0
+        status = "success" if passed else "partial_success"
         return {
-            "status": "success",
+            "status": status,
             "quality_score": avg_quality,
             "passed": passed,
             "output_paths": {"run_dir": str(run_dir), "summary_csv": str(summary_path)},
             "hashes": {"summary_csv": file_sha256(summary_path)},
         }
-    except (ValueError, FileNotFoundError) as exc:
+    except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except HTTPException:
+        raise
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail=f"Batch execution failed: {exc}") from exc
