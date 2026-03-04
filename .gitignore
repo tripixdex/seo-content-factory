@@ -21,10 +21,11 @@ dist/
 .vendor/
 
 # Runtime output
-outputs/*
+outputs/
 !outputs/.gitkeep
 inputs/uploads/*
 !inputs/uploads/.gitkeep
+.tmp/
 
 # OS/editor
 .DS_Store
@@ -32,7 +33,7 @@ inputs/uploads/*
 .idea/
 
 # Local n8n state
-infra/n8n/.n8n/database.sqlite*
+infra/n8n/.n8n/*
 
 # Local field fixtures
 fixtures/real/
