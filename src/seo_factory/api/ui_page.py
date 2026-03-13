@@ -96,7 +96,7 @@ def build_ui_html(default_output_dir: str) -> str:
       <ol>
         <li>Select a mode (single HTML or batch CSV).</li>
         <li>Fill `keyword`, `job_id`, and `run_id` (single) or `run_id` (batch).</li>
-        <li>Click run and share the generated output paths.</li>
+        <li>Run the pipeline and inspect the generated artifact paths.</li>
       </ol>
       <p><strong>Accepted inputs:</strong> `.html/.htm` for single mode, `.csv` for batch mode.</p>
       <p><strong>Offline mode:</strong> all processing is local-only. No network fetches.</p>
@@ -196,7 +196,7 @@ def build_ui_html(default_output_dir: str) -> str:
         </p>
         <p><strong>Output paths</strong></p>
         <pre id="paths-block">${{pathLines || 'No output paths returned.'}}</pre>
-        <button id="copy-path" type="button">Copy output path</button>
+        <button id="copy-path" type="button">Copy first output path</button>
       `;
       resultBox.style.display = 'block';
       const copyBtn = document.getElementById('copy-path');
